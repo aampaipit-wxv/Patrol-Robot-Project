@@ -1,224 +1,216 @@
-# 🤖 Patrol Robot Project
+# Patrol Robot Project
 
-An autonomous AI-powered smart security patrol robot integrating computer vision, facial recognition, real-time obstacle avoidance, animated OLED facial expressions, and instant cloud notifications via LINE Messenger.
+An autonomous surveillance robot platform integrating edge computer vision, facial recognition, obstacle avoidance, dynamic OLED facial animations, and cloud-based alert notifications via LINE Messenger.
 
 ---
 
-## 📋 Table of Contents
-- [Overview](#-overview)
-- [System Architecture](#-system-architecture)
-- [Key Features](#-key-features)
-- [Hardware Components & Pinout](#-hardware-components--pinout)
-- [Serial Communication Protocol](#-serial-communication-protocol)
-- [Software Requirements & Setup](#-software-requirements--setup)
+## Table of Contents
+- [Project Overview](#project-overview)
+- [System Architecture](#system-architecture)
+- [Key Features](#key-features)
+- [Hardware Specifications and Pinout](#hardware-specifications-and-pinout)
+- [Serial Communication Protocol](#serial-communication-protocol)
+- [Software Prerequisites and Installation](#software-prerequisites-and-installation)
   - [1. Arduino Firmware Setup](#1-arduino-firmware-setup)
-  - [2. Python AI Host Setup](#2-python-ai-host-setup)
-  - [3. Configuration & API Keys](#3-configuration--api-keys)
-  - [4. Enrolling Owner Faces](#4-enrolling-owner-faces)
-- [Running the System](#-running-the-system)
-- [Project Structure](#-project-structure)
-- [Security Notice](#-security-notice)
+  - [2. Python AI Host Environment](#2-python-ai-host-environment)
+  - [3. Configuration and API Parameters](#3-configuration-and-api-parameters)
+  - [4. Enrolling Authorized Face Profiles](#4-enrolling-authorized-face-profiles)
+- [System Operation](#system-operation)
+- [Directory Structure](#directory-structure)
+- [Security Guidelines](#security-guidelines)
+- [License](#license)
 
 ---
 
-## 🔍 Overview
+## Project Overview
 
-The **Patrol Robot Project** is designed for smart surveillance and indoor home/office patrolling. The system operates via two cooperative subsystems:
-1. **Host Computer / Edge AI System (Python):** Decodes live camera video (e.g. from an ESP32-CAM), detects human presence with **YOLOv8**, identifies registered owners using **Face Recognition (dlib/128-d encodings)**, and dispatches real-time security alerts with captured snapshots to **LINE Messenger** using **ImgBB**.
-2. **Autonomous Mobility & Reaction Subsystem (Arduino Nano):** Manages motor driving (**TB6612FNG**), obstacle avoidance (**HC-SR04**), motion detection (**PIR sensor**), audio alerts (**DFPlayer Mini**), and rendering dynamic expressive eyes on an **SSD1306 OLED display**.
+The Patrol Robot Project is an autonomous security robotic system designed for indoor surveillance, perimeter monitoring, and property protection. The platform consists of two primary operational layers:
+
+1. **Host Processing Layer (Python):** Executes real-time video stream ingestion (e.g., from an ESP32-CAM module), human detection utilizing the YOLOv8 deep learning model, and biometric facial recognition using 128-dimensional encodings. When an unauthorized individual or covered face is identified, an alert snapshot is archived to ImgBB and transmitted to a designated LINE group.
+2. **Embedded Control Layer (Arduino Nano):** Manages low-level locomotion through a TB6612FNG dual motor driver, distance monitoring via an HC-SR04 ultrasonic sensor, wake-on-motion detection via a PIR sensor, audio deterrence via a DFPlayer Mini module, and state visualization through animated eyes rendered on an SSD1306 OLED display.
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 ```
                       +-----------------------------+
-                      |   ESP32-CAM / IP Camera     |
+                      |    ESP32-CAM / IP Camera    |
                       +--------------+--------------+
-                                     | MJPEG Stream (WiFi)
+                                     | HTTP MJPEG Stream
                                      v
 +------------------+         +-------------------------------+
-|  PIR Motion Det  |         |   Python AI Host (main.py)    |
-|   (Front Range)  |         |-------------------------------|
-+--------+---------+         | • YOLOv8 Human Detection      |
-         |                   | • Face Recognition Engine     |
-         | Hardware Trigger  | • Serial Listener & Controller|
+|  PIR Motion Det  |         |    Python Host (src/main.py)  |
+|  (Digital Input) |         |-------------------------------|
++--------+---------+         | - YOLOv8 Person Detection     |
+         |                   | - Face Recognition Algorithm  |
+         | Hardware Interrupt| - Serial Protocol Engine      |
          v                   +---------------+---------------+
 +------------------+                         |
-|   Arduino Nano   |<==== Serial (USB) =====>+
-+--------+---------+  (Commands: S, O, C, N) | Alert Snapshots + Text
+|   Arduino Nano   |<==== Bidirectional =====>+
++--------+---------+        Serial (USB)     | Cloud Alert Snapshots
          |                                   v
          +---> TB6612FNG Motor Driver    +-------------------------+
-         +---> HC-SR04 Ultrasonic       |  ImgBB + LINE API Cloud |
+         +---> HC-SR04 Ultrasonic       | ImgBB & LINE Messaging  |
          +---> DFPlayer Mini (Audio)     +-------------------------+
-         +---> SSD1306 OLED (Expressions)
+         +---> SSD1306 OLED (Display)
 ```
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- **Energy-Efficient Motion-Triggered Scanning:** The Python AI remains in low-overhead standby until the Arduino's PIR motion sensor signals a `MOTION` event over Serial.
-- **YOLOv8 Human Presence Detection:** Highly accurate human detection (class 0) configured to spot people even in dim lighting or if face details are initially hidden.
-- **Deep Learning Facial Recognition:** Extracts 128-d facial landmark encodings to accurately distinguish between registered family/owners and unknown intruders.
-- **Covered Camera / Masked Intruder Logic:** If a human is detected without a recognizable face for 3 consecutive frames, the system automatically flags a security breach.
-- **Dynamic OLED Facial Expressions:**
-  - **Normal / Blinking:** Idle, natural eye-blinking animation.
-  - **Happy Face:** Displayed when an enrolled owner is recognized.
-  - **Angry / Alert Face:** Displayed when an intruder is identified.
-  - **Surprised Face:** Triggered if an obstacle is dangerously close.
-  - **Restless Searching Eyes:** Triggered if the camera view is blocked or obscured.
-- **Hardware Audio Alarm:** Plays loud deterrence sirens/audio via DFPlayer Mini.
-- **Instant LINE Push Notifications:** Automatically uploads incident snapshots to ImgBB and pushes real-time alert messages to a designated LINE group or user.
+- **Event-Driven Power Management:** The surveillance pipeline remains in a low-power standby state until the hardware PIR sensor signals physical motion.
+- **YOLOv8 Deep Learning Detection:** Accurately classifies human presence with confidence threshold tuning for partially obscured subjects.
+- **Biometric Identity Verification:** Compares detected facial landmarks against a pre-registered database of authorized individuals using Euclidean distance metrics (tolerance set to 0.45).
+- **Masked Intruder Detection:** Automatically raises an alarm if a human silhouette is tracked across multiple frames without a visible facial structure.
+- **OLED State Visualization:**
+  - *Default:* Natural eye blinking animation.
+  - *Owner Recognized:* Displays a positive confirmation face.
+  - *Intruder Detected:* Displays an alert warning expression.
+  - *Obstacle Warning:* Displays wide surprised eyes when an obstacle is within 10 cm.
+  - *Camera Obscured:* Displays shifting glance animation to indicate vision obstruction.
+- **Hardware Deterrence:** Directly controls an audio module to sound alarms upon security breaches.
+- **Instant Cloud Telemetry:** Transmits compressed image evidence and incident logs to LINE Messenger.
 
 ---
 
-## 🔌 Hardware Components & Pinout
+## Hardware Specifications and Pinout
 
-### Components:
-- **Arduino Nano** (Microcontroller)
-- **TB6612FNG** (Dual H-Bridge Motor Driver)
-- **HC-SR04** (Ultrasonic Distance Sensor)
-- **HC-SR501** or Mini **PIR Motion Sensor**
-- **0.96" SSD1306 I2C OLED Display (128x64)**
-- **DFRobot DFPlayer Mini** + Speaker + MicroSD card
-- **ESP32-CAM** or USB Web Camera
-- **2WD / 4WD Robot Chassis** with DC Gearmotors & Battery Pack (7.4V - 11.1V LiPo recommended)
+### Required Components
+- Microcontroller: Arduino Nano (ATmega328P)
+- Motor Driver: TB6612FNG Dual H-Bridge
+- Vision Module: ESP32-CAM or USB Video Class (UVC) Camera
+- Ultrasonic Sensor: HC-SR04
+- Passive Infrared Sensor: HC-SR501 or Mini PIR
+- Audio Player: DFRobot DFPlayer Mini + 3W Speaker + MicroSD Card
+- Graphic Display: 0.96-inch SSD1306 I2C OLED (128x64 pixels)
+- Chassis: 2WD or 4WD Differential Drive Robotic Chassis with DC Gearmotors
 
-### Arduino Nano Wiring Reference:
+### Pin Connection Table
 
-| Component | Pin Name | Arduino Nano Pin | Note |
+| Peripheral | Peripheral Pin | Arduino Nano Pin | Notes |
 |---|---|---|---|
-| **HC-SR04** | TRIG | `D9` | Output trigger pulse |
-| **HC-SR04** | ECHO | `D10` | Input pulse width |
-| **PIR Sensor** | OUT | `D6` | Digital motion input |
-| **TB6612FNG** | AIN1 | `D2` | Left Motor Direction 1 |
-| **TB6612FNG** | AIN2 | `D3` | Left Motor Direction 2 |
-| **TB6612FNG** | BIN1 | `D4` | Right Motor Direction 1 |
-| **TB6612FNG** | BIN2 | `D5` | Right Motor Direction 2 |
-| **DFPlayer Mini** | RX | `D12` (TX on Arduino)| Connect via 1k resistor |
-| **DFPlayer Mini** | TX | `D11` (RX on Arduino)| SoftwareSerial |
-| **SSD1306 OLED** | SDA | `A4` | I2C Data |
-| **SSD1306 OLED** | SCL | `A5` | I2C Clock |
+| HC-SR04 Ultrasonic | TRIG | D9 | Trigger Pulse (10 microseconds) |
+| HC-SR04 Ultrasonic | ECHO | D10 | Echo Pulse Duration |
+| PIR Motion Sensor | OUT | D6 | Digital Logic High on Motion |
+| TB6612FNG Driver | AIN1 | D2 | Left Motor Direction Control 1 |
+| TB6612FNG Driver | AIN2 | D3 | Left Motor Direction Control 2 |
+| TB6612FNG Driver | BIN1 | D4 | Right Motor Direction Control 1 |
+| TB6612FNG Driver | BIN2 | D5 | Right Motor Direction Control 2 |
+| DFPlayer Mini | RX | D12 (Arduino TX) | Series 1k ohm resistor recommended |
+| DFPlayer Mini | TX | D11 (Arduino RX) | SoftwareSerial connection |
+| SSD1306 OLED | SDA | A4 | Hardware I2C Data Line |
+| SSD1306 OLED | SCL | A5 | Hardware I2C Clock Line |
 
 ---
 
-## 📡 Serial Communication Protocol
+## Serial Communication Protocol
 
-The Arduino and Python host communicate over bidirectional Serial at **9600 Baud**:
+The host and embedded system communicate over USB Serial interface at **9600 Baud (8-N-1)**:
 
-| Direction | Command / Payload | Description |
+| Direction | Command | Description |
 |---|---|---|
-| **Arduino -> Python** | `MOTION` | PIR sensor detected human motion; wakes up AI detection pipeline for 5 seconds. |
-| **Python -> Arduino** | `O` | **Owner Identified:** Triggers happy face on OLED and allows robot patrol. |
-| **Python -> Arduino** | `S` | **Suspect / Intruder Detected:** Triggers angry face, stops robot, sounds siren. |
-| **Python -> Arduino** | `C` | **Camera Blocked:** Robot stops and displays glancing/searching eyes. |
-| **Python -> Arduino** | `N` | **Normal / Standby:** Resets display back to default blinking eyes. |
+| Arduino to Host | `MOTION` | Transmitted when the PIR sensor detects movement; activates the vision processing window for 5 seconds. |
+| Host to Arduino | `O` | Owner Verified: Robot renders confirmation face and proceeds with forward locomotion. |
+| Host to Arduino | `S` | Suspect Detected: Robot halts locomotion, sounds the audio siren, and renders alert expression. |
+| Host to Arduino | `C` | Vision Blocked: Robot halts and renders searching eye animation. |
+| Host to Arduino | `N` | Normal / Idle: Reverts OLED display to regular eye blinking state. |
 
 ---
 
-## 💻 Software Requirements & Setup
+## Software Prerequisites and Installation
 
 ### 1. Arduino Firmware Setup
-1. Open the [firmware/patrol_robot/patrol_robot.ino](firmware/patrol_robot/patrol_robot.ino) file in the **Arduino IDE**.
-2. Install the following libraries via the Arduino Library Manager:
+1. Launch the **Arduino IDE**.
+2. Install the necessary libraries via the Library Manager:
    - `Adafruit GFX Library`
    - `Adafruit SSD1306`
    - `DFRobotDFPlayerMini`
-   - `SoftwareSerial` (built-in)
-3. Connect your Arduino Nano via USB, select the correct Board and COM Port, then click **Upload**.
+3. Open `firmware/patrol_robot/patrol_robot.ino`.
+4. Select the target board (`Arduino Nano`) and processor (`ATmega328P` or `ATmega328P (Old Bootloader)`), then upload the sketch.
 
----
-
-### 2. Python AI Host Setup
-1. Ensure **Python 3.8 - 3.11** is installed.
-2. Clone this repository:
+### 2. Python AI Host Environment
+1. Ensure Python 3.8 to 3.11 is installed on the host system.
+2. Clone the repository:
    ```bash
    git clone https://github.com/aampaipit-wxv/Patrol-Robot-Project.git
    cd Patrol-Robot-Project
    ```
-3. Install required Python packages:
+3. Install package dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-   > **Note for `face-recognition` / `dlib` on Windows:**  
-   > If `dlib` fails to build, make sure Visual Studio C++ Build Tools and CMake are installed (`pip install cmake`), or use a precompiled wheel.
+   *Note:* The `face-recognition` module requires CMake and C++ build tools to compile `dlib`. Precompiled wheels may be used on Windows if compilation is not configured.
 
----
-
-### 3. Configuration & API Keys
-Open `src/main.py` and configure the placeholder variables:
+### 3. Configuration and API Parameters
+Edit `src/main.py` and supply your deployment values:
 
 ```python
 # LINE Messaging API Credentials
-CHANNEL_TOKEN = "YOUR_LINE_CHANNEL_ACCESS_TOKEN"  # From LINE Developers Console
-GROUP_ID      = "YOUR_LINE_GROUP_OR_USER_ID"       # Target LINE group or user ID
+CHANNEL_TOKEN = "YOUR_LINE_CHANNEL_ACCESS_TOKEN"  # Generated from LINE Developers Console
+GROUP_ID      = "YOUR_LINE_GROUP_OR_USER_ID"       # Target recipient or group identifier
 
-# Camera Stream URL
+# Video Stream URL
 URL_STREAM    = "http://YOUR_ESP32_CAM_IP:81/stream"
 
-# ImgBB API Key for Image Hosting
-IMGBB_API_KEY = "YOUR_IMGBB_API_KEY"              # Free key from https://api.imgbb.com/
+# ImgBB API Key
+IMGBB_API_KEY = "YOUR_IMGBB_API_KEY"              # Acquired from https://api.imgbb.com/
 
-# Arduino Serial Connection
-SERIAL_PORT   = "COM8"                            # Set your Arduino COM port
+# Serial Interface
+SERIAL_PORT   = "COM8"                            # Target serial port (Windows: COMx, Linux: /dev/ttyUSBx)
 BAUD_RATE     = 9600
 ```
 
----
-
-### 4. Enrolling Owner Faces
-1. Take clear portrait photos of authorized individuals.
-2. Place the image files into the `owner_faces/` folder:
-   ```
-   owner_faces/
-   ├── Alice.jpg
-   ├── Bob.png
-   └── Charlie.jpeg
-   ```
-3. The system will automatically register each face upon launch and use the file name as the display name.
+### 4. Enrolling Authorized Face Profiles
+1. Place clear frontal portrait images (.jpg, .jpeg, or .png format) into the `owner_faces/` folder.
+2. Format file names with the person's identity (for example: `John.jpg`, `Sarah.png`).
+3. The system will encode and index all images in this folder at initialization.
 
 ---
 
-## 🚀 Running the System
+## System Operation
 
-1. Power on the robot chassis and ensure the Arduino is connected to your host machine via USB.
-2. Ensure your ESP32-CAM stream is active and reachable on your local network.
-3. Start the AI patrol controller:
+1. Connect the Arduino Nano to the host system via USB.
+2. Ensure the camera module is streaming on the local network.
+3. Start the host application:
    ```bash
    python src/main.py
    ```
-4. A surveillance window will open.
-   - When motion is detected, the status changes to `[ PIR ACTIVE: SCANNING ]`.
-   - If an unrecognized individual is detected, an alert image is uploaded and dispatched to LINE.
-   - Press **`q`** in the video window to safely exit and release all ports.
+4. Operation workflow:
+   - The application stays in standby until motion is detected.
+   - Upon a motion trigger, YOLOv8 scans the frame for human presence.
+   - Detected faces are matched against authorized profiles.
+   - Unrecognized subjects trigger a cloud push notification and immediate robot halt with audible alarm.
+   - Press `q` while focused on the video window to terminate the application cleanly.
 
 ---
 
-## 📁 Project Structure
+## Directory Structure
 
 ```
 Patrol-Robot-Project/
-├── firmware/
-│   └── patrol_robot/
-│       └── patrol_robot.ino     # Arduino firmware (hardware, sensors, OLED, motors)
-├── src/
-│   └── main.py                  # Python AI surveillance engine (YOLOv8 + Face ID)
-├── owner_faces/
-│   └── .gitkeep                 # Directory for enrolled owner profile photos
-├── .gitignore                   # Excludes secrets, caches, images, and model weights
-├── requirements.txt             # Python dependencies
-└── README.md                    # Project documentation
+|-- firmware/
+|   `-- patrol_robot/
+|       `-- patrol_robot.ino      # Microcontroller firmware
+|-- src/
+|   `-- main.py                   # Host vision and control script
+|-- owner_faces/
+|   `-- .gitkeep                  # Authorized facial image directory
+|-- .gitignore                    # Version control exclusion rules
+|-- requirements.txt              # Python library dependencies
+`-- README.md                     # Technical documentation
 ```
 
 ---
 
-## 🔒 Security Notice
+## Security Guidelines
 
-- **Never commit active API keys, access tokens, or private face photographs to public version control.**
-- Use `.gitignore` to prevent secret leakage and keep `.env` or local configuration private.
+- Never commit active API keys, personal authentication tokens, or private biometric images to public repositories.
+- Use `.gitignore` to prevent confidential local configurations and cache files from being tracked.
 
 ---
 
-## 📄 License
-This project is open-source and available under the [MIT License](LICENSE).
+## License
+
+This project is licensed under the MIT License.
